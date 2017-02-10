@@ -1,0 +1,204 @@
+﻿
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>SignalR Simple Chat</title>
+    <style type="text/css">
+        .container {
+            background-color: #99CCFF;
+            border: thick solid #808080;
+            padding: 20px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>
+            <input type="button" id="start" value="Start"/>
+            <input type="text" id="userName" placeholder="Enter Your Name"/>
+            <input type="button" id="submit" value="Submit">
+            <input type="text" id="bid" placeholder="input your bid" value="0"/>
+            <input type="button" id="bidButton" value="Submit"/>
+            <input type="text" id="trump" placeholder="Enter your trump name"/>
+            <input type="button" id="trumpButton" value="Set Trump"/>
+            <input type="button" id="showTrump" value="Show Trump"/>
+            <input type="button" id="nextpart" value="Next" />
+        </div>
+   
+        <div id="card">
+        </div>
+        <div id="biddingMessage"></div>
+        <div id="throwingCard"></div>
+    </div>
+    <script src="Scripts/jquery-1.6.4.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.2.0.min.js"></script>
+    <script src="signalr/hubs"></script>
+    <script type="text/javascript">
+        $(function () {
+            var chat = $.connection.chatHub;
+            $('#start').hide();
+            $('#bid').hide();
+            $('#bidButton').hide();
+            $('#trump').hide();
+            $('#trumpButton').hide();
+            $('#showTrump').hide();
+            $('#nextpart').hide();
+            $.connection.hub.start().done(function () {
+                $('#submit').click(function () {
+                    $('#userName').hide();
+                    $('#submit').hide();
+                    //alert('submitted');
+                    chat.server.authentication($('#userName').val());
+                });
+            });
+
+            $.connection.hub.disconnected(function () {
+                setTimeout(function () {
+                    $.connection.hub.start();
+                }, 5000); // Restart connection after 5 seconds.
+            });
+
+            chat.client.authenticationComplete = function () {
+
+                $('#start').show();
+                $('#start').click(function () {
+                    $('#start').hide();
+                    chat.server.startPlay();
+
+                });
+
+
+            };
+
+            
+
+            var myCards = [];
+            chat.client.showCards = function (cards, startBidding) {
+                $('#start').hide();
+                myCards = cards;
+                for (var i = 0; i < cards.length; i++) {
+
+                    var img = '<img class="card" src="' + cards[i].ImagePath + '" id="' + cards[i].Id + '" alt="card image"/>';
+                    $('#card').append(img);
+
+                }
+
+                if (startBidding) {
+                    chat.server.bidding();
+                }
+            };
+
+            chat.client.bid = function () {
+                $('#bid').show();
+                $('#bidButton').show();
+                $('#bidButton').click(function () {
+                    $('#bid').hide();
+                    $('#bidButton').hide();
+                    chat.server.setBid($('#bid').val());
+                });
+
+            };
+
+            chat.client.showSecondPartCards = function (cards, throwCard) {
+                for (var j in cards) {
+                    myCards.push(cards[j]);
+                }
+                $('#biddingMessage').empty();
+                for (var i = 0; i < cards.length; i++) {
+                    var img = '<img class="card" src="' + cards[i].ImagePath + '" id="' + cards[i].Id + '" alt="card image"/>';
+                    $('#card').append(img);
+
+                }
+
+                $('#showTrump').show();
+
+                $('.card').click(function (event) {
+                   
+                    for (var i = 0; i < myCards.length; i++) {
+
+                        if (myCards[i].Id == event.target.id) {
+                            $('#' + myCards[i].Id).remove();
+                            myCards.splice(i, 1);
+                            break;
+                        }
+                    }
+                    chat.server.showPlayingCard(event.target.id);
+                });
+
+                if (throwCard) {
+                    chat.server.startCardThrowing();
+                }
+            };
+
+            chat.client.messageToThrowCard = function () {
+                alert("Play your Card");
+            }
+
+            chat.client.removeThrowingCard = function() {
+                $('#throwingCard').empty();
+            };
+
+            chat.client.messageOfBoardWinner = function (cardover) {
+                alert("you won current board");
+                if (!cardover) {
+                    chat.server.startCardThrowing();
+                }
+                else {
+                    $('#start').show();
+                }
+            };
+
+            $('#nextpart').click(function () {
+
+                $('#nextpart').hide();
+                chat.server.startPlay();
+            });
+
+            chat.client.winningMessage = function (winner) {
+
+                if (winner) {
+                    alert(" your team won the match");
+                }
+                else {
+                    alert("your team lost the match");
+                }
+            };
+
+
+            chat.client.showBid = function (bid, name) {
+                var Bid = $('<div>').text(bid).html();
+                var Name = $('<div>').text(name).html();
+                $('#biddingMessage').append('<li>' + Name + ' call ' + Bid + '</li>');
+            };
+
+            chat.client.selectTrump = function () {
+                $('#trump').show();
+                $('#trumpButton').show();
+                $('#trumpButton').click(function () {
+                    $('#trump').hide();
+                    $('#trumpButton').hide();
+                    chat.server.setTrump($('#trump').val());
+                });
+            };
+
+            $('#showTrump').click(function() {
+                
+                chat.server.showTrump();
+            });
+
+            chat.client.broadcastTrump = function(trump) {
+                $('#showTrump').hide();
+                alert("Trump card is " + trump);
+            };
+
+            chat.client.broadcastPlayingCard = function (image) {
+
+                var img = '<img src="' + image + '" />';
+                $('#throwingCard').append(img);
+            };
+
+            
+        });
+    </script>
+</body>
+</html>
